@@ -18,8 +18,7 @@
   "dependencies": {
     "cypress": "^9.5.4",
     "dotenv": "^16.0.0",
-    "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.1",
+    "html2pdf.js": "^0.10.1",
     "papaparse": "^5.3.2",
     "xlsx": "^0.18.5"
   }

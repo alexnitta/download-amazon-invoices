@@ -1,7 +1,6 @@
-import { jsPDF } from "jspdf";
-import html2Canvas from "html2canvas";
 import { parse } from "papaparse";
 import * as XLSX from "xlsx";
+import html2pdf from "html2pdf.js";
 
 /**
  * Check that the input is a non-empty string
@@ -26,9 +25,7 @@ const checkStringInputs = inputs =>
  */
 const downloadInvoice = (orderId, pdfFilename, orderHistoryHref) => {
   if (checkStringInputs([orderId, pdfFilename, orderHistoryHref])) {
-    cy.get("input#searchOrdersInput").type(orderId);
-
-    cy.get("form#searchForm").submit();
+    cy.get("input[name='search']").type(orderId).type("{enter}");
 
     cy.get("div#ordersContainer").contains("View invoice").click();
 
@@ -40,19 +37,27 @@ const downloadInvoice = (orderId, pdfFilename, orderHistoryHref) => {
     cy.get("body")
       .first()
       .then($body => {
-        html2Canvas($body[0]).then(canvas => {
-          const imgData = canvas.toDataURL("image/png");
-          const pdf = new jsPDF({
-            orientation: "portrait",
-          });
-          const imgProps = pdf.getImageProperties(imgData);
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        const body = $body[0];
 
-          pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-
-          pdf.save(`${pdfFilename}.pdf`);
-        });
+        html2pdf()
+          .set({
+            margin: 0.5,
+            filename: pdfFilename,
+            image: {
+              type: "jpeg",
+              quality: 0.7,
+            },
+            jsPDF: {
+              unit: "in",
+              format: "letter",
+              orientation: "portrait",
+            },
+            pagebreak: {
+              mode: "avoid-all",
+            },
+          })
+          .from(body)
+          .save();
       });
   }
 
@@ -61,41 +66,43 @@ const downloadInvoice = (orderId, pdfFilename, orderHistoryHref) => {
 
 /**
  * Download a list of invoices
- * @param {object[]} invoices the array of invoice objects. Each must have an `order_id` property.
- * If a `pdf_filename` property is included, it will be used as the PDF filename; otherwise, the
- * `order_id` property will be used.
+ * @param {object[]} invoices the array of invoice objects. Each must have an `order_id` and
+ * `pdf_filename` property.
  * @param {string} orderHistoryHref the link to the order history page
  * @param {string} dataSource the path to the spreadsheet that was used to read the list of invoices
  */
 const downloadInvoices = (invoices, orderHistoryHref, dataSource) => {
   const filtered = invoices.filter(invoice =>
-    checkStringInputs([invoice.order_id])
+    checkStringInputs([invoice.pdf_filename, invoice.order_id])
   );
 
-  cy.log(`Downloading ${filtered.length} invoices from ${dataSource}`);
-
-  cy.wrap(filtered).each((invoice, index) => {
-    const { order_id, pdf_filename } = invoice;
+  const mapped = filtered.map(invoice => {
+    const { pdf_filename } = invoice;
 
     if (pdf_filename && pdf_filename.length > 0) {
-      cy.log(
-        `Downloading invoice ${index + 1} of ${
-          filtered.length
-        } with order ID: ${order_id} to file: ${pdf_filename}.pdf`
-      );
-
-      // If pdf_filename is included, use it as the PDF filename
-      downloadInvoice(order_id, pdf_filename, orderHistoryHref);
-    } else {
-      cy.log(
-        `Downloading invoice ${index + 1} of ${
-          filtered.length
-        } with order ID: ${order_id} to file: ${order_id}.pdf`
-      );
-
-      // Otherwise, use the order_id as the PDF filename
-      downloadInvoice(order_id, order_id, orderHistoryHref);
+      if (!pdf_filename.toLowerCase().includes(".pdf")) {
+        return {
+          ...invoice,
+          pdf_filename: `${pdf_filename}.pdf`,
+        };
+      }
     }
+
+    return invoice;
+  });
+
+  cy.log(`Downloading ${mapped.length} invoices from ${dataSource}`);
+
+  cy.wrap(mapped).each((invoice, index) => {
+    const { order_id, pdf_filename } = invoice;
+
+    cy.log(
+      `Downloading invoice ${index + 1} of ${
+        filtered.length
+      } with order ID: ${order_id} to file: ${pdf_filename}`
+    );
+
+    downloadInvoice(order_id, pdf_filename, orderHistoryHref);
   });
 };
 

@@ -21,9 +21,9 @@ Before running this spec, you should:
 1. Set up environment variables in a .env file according to the example in .env.example. This is how you will provide your email and password for logging in to Amazon.com.
 2. Set up a file in ./data/invoices.csv or ./data/invoices.xlsx (relative to the root of the project) that contains two columns named "order_id" and "pdf_filename".
 
-   - For each row, "order_id" should contain the Amazon.com order ID and "pdf_filename" should contain the desired filename for the PDF invoice. You do not need to include the .pdf extension in the filename; it will be added.
-   - The "pdf_filename" column is optional; if you do not provide a "pdf_filename" value, then the "order_id" value will be used as the filename.
+   - For each row that you want to use to download an invoice, "order_id" must contain the Amazon.com order ID and "pdf_filename" must contain the desired filename for the PDF invoice. You do not need to include the .pdf extension in the filename; if it is missing, it will be added.
    - Only one of the two spreadsheet files will be used. If the spec finds a file in ./data/invoices.csv, that will be used; if not, it will check for ./data/invoices.xlsx and try to use that.
+   - If you're using a .xlsx file, only the sheet (i.e. tab) named "Sheet1" will be used. This is the default sheet name for a new spreadsheet, so in most cases you won't need to rename your sheet.
 
 Example format for ./data/invoices.csv or ./data/invoices.xlsx:
 
@@ -48,3 +48,7 @@ yarn cypress:open
 ```
 
 to open the Cypress application, then click the link for "downloadAmazonInvoices.js" to watch the spec run in a Chrome browser.
+
+## Caveats
+
+Cypress enforces a redirection limit which caps the number of invoices that can be downloaded. This is set in cypress.json under the `redirectionLimit` value.
