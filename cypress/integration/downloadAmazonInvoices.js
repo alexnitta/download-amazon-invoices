@@ -24,44 +24,70 @@ const checkStringInputs = inputs =>
  * @param {string} orderHistoryHref - the link for the Order History page
  */
 const downloadInvoice = (orderId, pdfFilename, orderHistoryHref) => {
+  const result = {
+    downloaded: false,
+    orderId,
+    pdfFilename,
+    message: "",
+  };
+
   if (checkStringInputs([orderId, pdfFilename, orderHistoryHref])) {
     cy.get("input[name='search']").type(orderId).type("{enter}");
 
-    cy.get("div#ordersContainer").contains("View invoice").click();
+    cy.get("div#ordersContainer").then($divs => {
+      let foundDiv = false;
+      $divs.each((index, div) => {
+        if (div.textContent.includes("View invoice")) {
+          foundDiv = true;
 
-    cy.location("pathname", { timeout: 2000 }).should(
-      "include",
-      "gp/css/summary/print.html"
-    );
+          cy.wrap(div).contains("View invoice").click();
 
-    cy.get("body")
-      .first()
-      .then($body => {
-        const body = $body[0];
+          cy.location("pathname", { timeout: 2000 }).should(
+            "include",
+            "gp/css/summary/print.html"
+          );
 
-        html2pdf()
-          .set({
-            margin: 0.5,
-            filename: pdfFilename,
-            image: {
-              type: "jpeg",
-              quality: 0.7,
-            },
-            jsPDF: {
-              unit: "in",
-              format: "letter",
-              orientation: "portrait",
-            },
-            pagebreak: {
-              mode: "avoid-all",
-            },
-          })
-          .from(body)
-          .save();
+          cy.get("body")
+            .first()
+            .then($body => {
+              const body = $body[0];
+
+              html2pdf()
+                .set({
+                  margin: 0.5,
+                  filename: pdfFilename,
+                  image: {
+                    type: "jpeg",
+                    quality: 0.7,
+                  },
+                  jsPDF: {
+                    unit: "in",
+                    format: "letter",
+                    orientation: "portrait",
+                  },
+                  pagebreak: {
+                    mode: "avoid-all",
+                  },
+                })
+                .from(body)
+                .save()
+                .then(() => {
+                  result.downloaded = true;
+                  result.message = "Successfully saved PDF";
+                });
+            });
+        }
       });
+
+      if (!foundDiv) {
+        result.message = "Could not find an invoice for this order ID";
+      }
+    });
   }
 
   cy.visit(orderHistoryHref);
+
+  return result;
 };
 
 /**
@@ -93,6 +119,8 @@ const downloadInvoices = (invoices, orderHistoryHref, dataSource) => {
 
   cy.log(`Downloading ${mapped.length} invoices from ${dataSource}`);
 
+  const results = [];
+
   cy.wrap(mapped).each((invoice, index) => {
     const { order_id, pdf_filename } = invoice;
 
@@ -102,8 +130,12 @@ const downloadInvoices = (invoices, orderHistoryHref, dataSource) => {
       } with order ID: ${order_id} to file: ${pdf_filename}`
     );
 
-    downloadInvoice(order_id, pdf_filename, orderHistoryHref);
+    const result = downloadInvoice(order_id, pdf_filename, orderHistoryHref);
+
+    results.push(result);
   });
+
+  cy.writeFile(`data/results.${Date.now()}.json`, results);
 };
 
 /**

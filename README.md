@@ -29,9 +29,33 @@ Example format for ./data/invoices.csv or ./data/invoices.xlsx:
 
 <img src="./assets/format_for_invoices_csv.png" alt="Example format of ./data/invoices.csv" width="300"/>
 
-After the spec has been run, PDFs will be saved into the ./cypress/downloads folder, using the names supplied in the ./data/invoices.csv file. Here's how the file tree will look from your editor:
+After the spec has been run, PDFs will be saved into the ./cypress/downloads folder, using the names supplied in the ./data/invoices.csv or ./data/invoices.xlsx file. Here's how the file tree will look from your editor:
 
 <img src="./assets/downloads_after_run.png" alt="Contents of cypress/downloads after run" width="160"/>
+
+In addition, you'll see a new file in `/data/results.<timestamp>.json` showing the download results for each file, which looks something like this:
+
+```JSON
+[
+  {
+    "downloaded": true,
+    "orderId": "114-3355864-6271463",
+    "pdfFilename": "910-1000.pdf",
+    "message": "Successfully saved PDF"
+  },
+  {
+    "downloaded": true,
+    "orderId": "114-9330038-0130662",
+    "pdfFilename": "910-1001.pdf",
+    "message": "Successfully saved PDF"
+  },
+  {
+    "downloaded": false,
+    "orderId": "114-0345835-5404208",
+    "pdfFilename": "910-1002.pdf",
+    "message": "Could not find an invoice for this order ID"
+  },
+```
 
 ## Run
 
@@ -51,4 +75,6 @@ to open the Cypress application, then click the link for "downloadAmazonInvoices
 
 ## Caveats
 
-Cypress enforces a redirection limit which caps the number of invoices that can be downloaded. This is set in cypress.json under the `redirectionLimit` value.
+- Amazon's website is changing all the time, so this spec may need to be updated to work correctly. I've even seen times where the invoice search feature just stops working. You may need to do some manual testing to verify that your automation should actually work. Sometimes the solution is just to wait until Amazon fixes its own bugs.
+- Amazon uses a few different security features to prevent unauthorized access to your account. This spec does not work with accounts that are opted into Amazon's two-factor authentication. The first time you run this spec, it will probably trigger a security warning that sends you a text message to confirm that it's actually you trying to log in. You'll need to confirm that you want to log in, and you may have to do this several times before Amazon stops asking for confirmation.
+- Cypress enforces a redirection limit which caps the number of invoices that can be downloaded. This is set in cypress.json under the `redirectionLimit` value.
